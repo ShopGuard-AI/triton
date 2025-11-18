@@ -1,0 +1,33 @@
+name: "yolov11n"
+platform: "tensorrt_plan"
+max_batch_size: 16
+
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    dims: [3, 640, 640]
+    format: FORMAT_NCHW
+  }
+]
+
+output [
+  {
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [84, 8400]
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_GPU
+    count: 2
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [1,2,4,8,16]
+  max_queue_delay_microseconds: 1000
+}
+
