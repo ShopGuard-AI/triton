@@ -8,8 +8,6 @@ kind: Deployment
 metadata:
   name: triton
   namespace: triton
-  labels:
-    app: triton
 spec:
   replicas: 1
   selector:
@@ -21,50 +19,48 @@ spec:
         app: triton
     spec:
       containers:
-      - name: triton
-        image: shopguard/triton-server:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - name: http
-          containerPort: 8000
-          protocol: TCP
-        - name: grpc
-          containerPort: 8001
-          protocol: TCP
-        - name: metrics
-          containerPort: 8002
-          protocol: TCP
-        resources:
-          limits:
-            nvidia.com/gpu: "1"
-          requests:
-            nvidia.com/gpu: "1"
-      restartPolicy: Always
-      securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
+        - name: triton
+          image: nvcr.io/nvidia/tritonserver:25.03-py3
+          args:
+            - "/bin/bash"
+            - "-c"
+            - "tritonserver --model-repository=/mnt/weights/models --model-control-mode=poll --repository-poll-secs=300 --disable-auto-complete-config --allow-http=true --allow-grpc=true --allow-metrics=true --log-verbose=1"
+          ports:
+            - containerPort: 8000
+            - containerPort: 8001
+            - containerPort: 8002
+          volumeMounts:
+            - name: weights
+              mountPath: /mnt/weights
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+      volumes:
+        - name: weights
+          hostPath:
+            path: /mnt/data/triton-weights
+            type: Directory
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: triton
   namespace: triton
-  labels:
-    app: triton
 spec:
-  type: ClusterIP
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 8000
-    protocol: TCP
-  - name: grpc
-    port: 8001
-    targetPort: 8001
-    protocol: TCP
-  - name: metrics
-    port: 8002
-    targetPort: 8002
-    protocol: TCP
+  type: NodePort
   selector:
     app: triton
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080
+    - name: grpc
+      port: 8001
+      targetPort: 8001
+      nodePort: 30081
+    - name: metrics
+      port: 8002
+      targetPort: 8002
+      nodePort: 30082
+
